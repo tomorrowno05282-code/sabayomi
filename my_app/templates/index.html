@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダータスク管理</title>
+    
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.14/index.global.min.js'></script>
+    
+    <style>
+        /* --- 全体とカレンダーのラッパー --- */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", sans-serif;
+            margin: 0; 
+            padding: 10px; 
+            background-color: #f4f7f6; 
+            transition: margin 0.3s ease;
+        }
+        #calendar-container {
+            max-width: 1100px; 
+            margin: 20px auto; 
+            padding: 20px;
+            background-color: #ffffff; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            transition: min-height 0.3s ease;
+        }
+        #calendar { max-width: 1100px; margin: 0 auto; }
+        
+        /* --- カレンダーヘッダー --- */
+        .fc-toolbar.fc-header-toolbar { 
+            padding: 10px; 
+            align-items: center; 
+            display: flex;
+            flex-wrap: wrap; 
+        }
+        .fc-toolbar-title { font-size: 1.6em; font-weight: 600; color: #333; }
+        .fc .fc-button-primary { background-color: #f0f0f0; border-color: #f0f0f0; color: #555; font-weight: 600; transition: background-color 0.2s; }
+        .fc .fc-button-primary:not(:disabled):active, 
+        .fc .fc-button-primary:not(:disabled).fc-button-active { background-color: #007bff; border-color: #007bff; color: #fff; }
+        .fc .fc-button-primary:hover { background-color: #e0e0e0; border-color: #e0e0e0; }
+
+        /* --- タスク (イベント) のスタイル --- */
+        .fc-event-main { 
+            cursor: pointer; 
+            padding: 3px 6px; 
+            overflow: hidden;         
+            text-overflow: ellipsis;  
+            white-space: nowrap;      
+            border-radius: 4px; 
+        }
+        .fc-event-title { color: #fff; font-weight: 500; }
+        
+        /* --- モーダルのCSS --- */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; border-radius: 8px; width: 80%; max-width: 500px; transition: margin 0.3s ease, width 0.3s ease; }
+        .modal-content div { margin-bottom: 15px; }
+        .modal-content label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .modal-content input[type="text"],
+        .modal-content input[type="date"] { width: 95%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close-button:hover,
+        .close-button:focus { color: black; }
+        #save-button { background: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+        #delete-button { background: #dc3545; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; float: right; }
+        
+        /* --- 色分け用CSS --- */
+        .task-fake .fc-event-main { background-color: #007bff; border-color: #007bff; }
+        .task-real .fc-event-main { background-color: #dc3545; border-color: #dc3545; font-weight: bold; }
+        
+        
+        /* --- スマホ/タブレット用CSS --- */
+        @media (max-width: 768px) {
+            body { 
+                margin: 0; 
+                padding: 0; 
+            }
+            #calendar-container { 
+                padding: 10px 5px; 
+                margin: 0; 
+                border-radius: 0; 
+                box-shadow: none; 
+            }
+            .fc-toolbar.fc-header-toolbar {
+                justify-content: space-between; 
+            }
+            .fc-toolbar-title { 
+                font-size: 1.2em; 
+                flex-grow: 1; 
+                text-align: center; 
+            }
+            .modal-content { width: 90%; margin: 10% auto; }
+            .fc-daygrid-event .fc-event-title { font-size: 0.9em; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="calendar-container">
+        <div id="calendar"></div>
+    </div>
+    
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span id="closeModalButton" class="close-button">&times;</span>
+            <h3>タスクの編集</h3>
+            
+            <input type="hidden" id="edit-task-id">
+            
+            <div>
+                <label for="edit-task-name">タスク名:</label>
+                <input type="text" id="edit-task-name">
+            </div>
+            
+            <div>
+                <label for="edit-task-date">本当の期日:</label>
+                <input type="date" id="edit-task-date">
+            </div>
+            
+            <button id="save-button">保存</button>
+            <button id="delete-button">削除</button>
+        </div>
+    </div>
+
+    <script>
+        var fakeTodayStr = '{{ fake_today_str }}';
+    </script>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            var calendarEl = document.getElementById('calendar');
+            
+            // モーダル関連の要素を取得
+            var modal = document.getElementById('editModal');
+            var closeModalButton = document.getElementById('closeModalButton');
+            var saveButton = document.getElementById('save-button');
+            var deleteButton = document.getElementById('delete-button');
+            var taskIdInput = document.getElementById('edit-task-id');
+            var taskNameInput = document.getElementById('edit-task-name');
+            var taskDateInput = document.getElementById('edit-task-date');
+            
+            var calendar = new FullCalendar.Calendar(calendarEl, {
+                
+                // (デモ用) 偽の「今日」を設定
+                now: fakeTodayStr,
+                initialDate: fakeTodayStr, 
+                
+                // (更新) 高さは 'setCalendarHeight' 関数で設定するため、ここでは 'auto' に
+                height: 'auto', 
+                
+                // --- 基本設定 ---
+                initialView: 'dayGridMonth',
+                locale: 'ja',
+                fixedWeekCount: true, // 6週間固定
+                
+                // (ヘッダーの切り替えロジック)
+                headerToolbar: (window.innerWidth <= 768) ? {
+                    left: 'prev',
+                    center: 'title',
+                    right: 'next'
+                } : {
+                    left: 'prev,next today', 
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                
+                // --- イベント処理 ---
+                events: '/api/get_tasks',
+
+                dateClick: function(info) {
+                    var clickedDateStr = info.dateStr;
+                    var taskName = prompt('タスク名を入力してください:', '');
+                    if (taskName) {
+                        fetch('/add_task', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 'task_name': taskName, 'real_deadline': clickedDateStr })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') { calendar.refetchEvents(); } 
+                            else { alert('タスクの追加に失敗しました。'); }
+                        })
+                        .catch(error => console.error('Fetchエラー:', error));
+                    }
+                },
+                
+                eventClick: function(info) {
+                    taskIdInput.value = info.event.id;
+                    taskNameInput.value = info.event.title;
+                    taskDateInput.value = info.event.extendedProps.real_str;
+                    modal.style.display = 'block';
+                },
+                
+                eventDidMount: function(info) {
+                    var isReal = info.event.extendedProps.is_real_deadline_showing;
+                    if (isReal) { info.el.classList.add('task-real'); } 
+                    else { info.el.classList.add('task-fake'); }
+                }
+            });
+
+            // カレンダーを描画
+            calendar.render();
+            
+            
+            // ▼▼▼ (更新) 高さを動的に設定する関数 ▼▼▼
+            function setCalendarHeight() {
+                var isPortrait = window.innerHeight > window.innerWidth;
+                // FullCalendarの 'setOption' を使って高さを変更
+                calendar.setOption('height', isPortrait ? '85vh' : 'auto');
+            }
+
+            // 1. ページ読み込み時に高さを設定
+            setCalendarHeight();
+
+            // 2. ウィンドウサイズが変わるたびに高さを再設定
+            window.addEventListener('resize', setCalendarHeight);
+            // ▲▲▲
+            
+            
+            // --- モーダルのボタンの処理 ---
+            closeModalButton.onclick = function() { modal.style.display = 'none'; };
+            window.onclick = function(event) { if (event.target == modal) { modal.style.display = 'none'; } };
+            
+            saveButton.onclick = function() {
+                var taskId = taskIdInput.value;
+                var newName = taskNameInput.value;
+                var newDate = taskDateInput.value;
+                if (!newName || !newDate) { alert("タスク名と日付は必須です。"); return; }
+                
+                fetch('/api/update_task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 'id': taskId, 'action': 'edit', 'payload': { 'name': newName, 'date': newDate } })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        modal.style.display = 'none'; 
+                        calendar.refetchEvents();     
+                    } else { alert('保存に失敗しました: ' + (data.message || '')); }
+                })
+                .catch(error => console.error('Fetchエラー:', error));
+            };
+            
+            deleteButton.onclick = function() {
+                var taskId = taskIdInput.value;
+                var taskName = taskNameInput.value;
+                if (!confirm("本当にこのタスクを削除しますか？\n\n" + taskName)) { return; }
+                
+                fetch('/api/update_task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 'id': taskId, 'action': 'delete' })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        modal.style.display = 'none'; 
+                        calendar.refetchEvents();     
+                    } else { alert('削除に失敗しました: ' + (data.message || '')); }
+                })
+                .catch(error => console.error('Fetchエラー:', error));
+            };
+        });
+    </script>
+
+</body>
+</html>

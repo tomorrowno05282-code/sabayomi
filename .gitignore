@@ -1,0 +1,21 @@
+# Pythonの一時ファイル（コンパイル済みファイルなど）
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Flaskの一時ファイル
+instance/
+.webassets-cache
+
+# 仮想環境のフォルダ（ライブラリが入っている場所）
+venv/
+env/
+ENV/
+
+# VSCodeの設定ファイル
+.vscode/
+.idea/
+
+# OSが勝手に作る一時ファイル
+.DS_Store
+Thumbs.db
