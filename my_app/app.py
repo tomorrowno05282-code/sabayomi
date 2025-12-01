@@ -18,11 +18,8 @@ def calculate_fake_deadline(real_deadline_str):
     except ValueError:
         return None
 
-    # ▼▼▼ デモ用に日付を偽装 (例: 11月18日) ▼▼▼
-    # (デモが終わったら、下の行を有効にし、上の行をコメントアウトしてください)
-    today = datetime.date(2025, 11, 25) 
-    # today = datetime.date.today() 
-    # ▲▲▲
+
+    today = datetime.date() 
     
     # 本当の期日までの総日数を計算
     total_days = (real_deadline - today).days
@@ -67,7 +64,7 @@ def index():
     HTML側に「偽の今日」の日付を渡す
     """
     # ▼▼▼ デモ用偽装日付を定義 ▼▼▼
-    fake_today_for_demo = datetime.date(2025, 11, 25)
+    fake_today_for_demo = datetime.date()
     # ▲▲▲
     
     # HTMLテンプレートに、偽の日付文字列を渡す
@@ -78,11 +75,8 @@ def index():
 @app.route('/api/get_tasks')
 def get_tasks():
     
-    # ▼▼▼ デモ用に日付を偽装 (1. と同じ日付に) ▼▼▼
-    # (デモが終わったら、下の行を有効にし、上の行をコメントアウトしてください)
-    today = datetime.date(2025, 11, 25) 
-    # today = datetime.date.today()
-    # ▲▲▲
+
+    today = datetime.date() 
     
     calendar_events = [] 
     
@@ -158,7 +152,7 @@ def add_task():
         print(f"add_task エラー: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 400
 
-# --- タスク編集/削除 (バグ修正済み) ---
+# --- タスク編集/削除 ---
 @app.route('/api/update_task', methods=['POST'])
 def update_task():
     global tasks_db

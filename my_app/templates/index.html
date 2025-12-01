@@ -147,7 +147,7 @@
                 now: fakeTodayStr,
                 initialDate: fakeTodayStr, 
                 
-                // (更新) 高さは 'setCalendarHeight' 関数で設定するため、ここでは 'auto' に
+                // 高さは 'setCalendarHeight' 関数で設定するため、ここでは 'auto' に
                 height: 'auto', 
                 
                 // --- 基本設定 ---
@@ -205,7 +205,7 @@
             calendar.render();
             
             
-            // ▼▼▼ (更新) 高さを動的に設定する関数 ▼▼▼
+            // ▼▼▼ 高さを動的に設定する関数 ▼▼▼
             function setCalendarHeight() {
                 var isPortrait = window.innerHeight > window.innerWidth;
                 // FullCalendarの 'setOption' を使って高さを変更
